@@ -1,0 +1,11 @@
+{
+  "name": "မှိုလုပ်ငန်း Online စာရင်းစနစ်",
+  "short_name": "Mushroom",
+  "description": "မှိုလုပ်ငန်း၏ အထွက်၊ အရောင်း၊ အသုံးစရိတ်နှင့် အမြတ်အရှုံးစာရင်းများ စီမံခန့်ခွဲရန်",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#212b9d",
+  "theme_color": "#bf2525"
+}
