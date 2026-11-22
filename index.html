@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1b5e20">
+    <title>မှိုလုပ်ငန်း Online စာရင်းစနစ်</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary: #2e7d32; --primary-dark: #1b5e20; --secondary: #ef6c00;
+            --bg: #f4f7f5; --card: #ffffff; --text: #222222; --muted: #666666;
+            --danger: #d32f2f; --border: #e0e6e2;
+        }
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Pyidaungsu", "Myanmar Text", sans-serif; }
+        body { margin: 0; padding: 0; background: var(--bg); color: var(--text); padding-bottom: 80px; }
+        
+        /* Login Screen */
+        #login-screen {
+            position: fixed; inset: 0; background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            display: flex; align-items: center; justify-content: center; z-index: 999; padding: 20px;
+        }
+        .login-box {
+            background: white; width: 100%; max-width: 360px; padding: 24px; border-radius: 16px;
+            text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .login-box h2 { margin: 0 0 8px; color: var(--primary-dark); font-size: 20px; }
+        .login-box p { margin: 0 0 18px; color: var(--muted); font-size: 13px; }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            color: white; padding: 14px 16px; position: sticky; top: 0; z-index: 100;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        header h1 { margin: 0; font-size: 17px; }
+        header p { margin: 2px 0 0; font-size: 11px; opacity: 0.9; }
+        .role-badge { background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+
+        .container { max-width: 600px; margin: 0 auto; padding: 12px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .card {
+            background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05); border: 1px solid var(--border);
+        }
+        .card-title { font-size: 15px; font-weight: bold; color: var(--primary-dark); margin: 0 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .form-group { margin-bottom: 10px; }
+        label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+        input[type="text"], input[type="number"], input[type="date"], input[type="password"] {
+            width: 100%; padding: 11px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; background: #fafafa;
+        }
+        input:focus { outline: none; border-color: var(--primary); background: #fff; }
+        
+        .btn {
+            width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 15px; font-weight: bold;
+            cursor: pointer; text-align: center;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: var(--secondary); color: white; }
+        .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 6px 10px; font-size: 12px; width: auto; }
+        .btn-danger { background: var(--danger); color: white; padding: 5px 9px; font-size: 12px; width: auto; }
+
+        .summary-box { background: #e8f5e9; border-radius: 10px; padding: 12px; margin-top: 10px; border: 1px solid #c8e6c9; }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 14px; }
+        .summary-row.total { font-size: 16px; font-weight: bold; border-top: 1px dashed #a5d6a7; padding-top: 6px; margin-top: 6px; }
+        .profit-pos { color: var(--primary-dark); }
+        .profit-neg { color: var(--danger); }
+
+        .expense-item, .share-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px;
+        }
+
+        .nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; background: white; display: flex;
+            border-top: 1px solid #ddd; box-shadow: 0 -2px 8px rgba(0,0,0,0.06); z-index: 100;
+        }
+        .nav-btn {
+            flex: 1; padding: 10px 4px; border: none; background: none; font-size: 12px;
+            color: var(--muted); font-weight: bold; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px;
+        }
+        .nav-btn.active { color: var(--primary); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+    <div class="login-box">
+        <h2>🍄 မှိုလုပ်ငန်း Online စနစ်</h2>
+        <p>စကားဝှက် (PIN) ရိုက်ထည့်၍ ဝင်ရောက်ပါ</p>
+        <div class="form-group">
+            <input type="password" id="pin-input" placeholder="PIN နံပါတ် (ဥပမာ - 1234)" style="text-align:center; font-size:18px; letter-spacing:4px;">
+        </div>
+        <button class="btn btn-primary" onclick="login()">ဝင်ရောက်မည်</button>
+        <p style="margin-top:14px; font-size:11px; color:#888;">
+            Admin PIN: 1234 | အလုပ်သမား PIN: 0000
+        </p>
+    </div>
+</div>
+
+<!-- HEADER -->
+<header>
+    <div>
+        <h1>🍄 မှိုခြံ စာရင်းစနစ်</h1>
+        <p id="header-price-info">လက်ကား: 10,000 Ks | လက်လီ: 12,000 Ks</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+        <span class="role-badge" id="user-role-label">Admin</span>
+        <button onclick="logout()" style="background:none; border:1px solid rgba(255,255,255,0.5); color:white; border-radius:6px; padding:4px 8px; font-size:11px;">ထွက်မည်</button>
+    </div>
+</header>
+
+<div class="container">
+
+    <!-- TAB 1: စာရင်းသွင်းရန် (Admin & Staff နှစ်ဦးလုံး မြင်ရမည်) -->
+    <div id="tab-daily" class="tab-content active">
+        <div class="card">
+            <div class="card-title"><span>📅 နေ့စဉ် မှိုအထွက်နှင့် အရောင်း</span></div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>ရက်စွဲ</label>
+                    <input type="date" id="entry-date">
+                </div>
+                <div class="form-group">
+                    <label>စုစုပေါင်းထွက်ရှိ (ပိဿာ)</label>
+                    <input type="number" id="total-viss" step="0.01" placeholder="0.00" oninput="calculateLive()">
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>လက်ကားရောင်း (ပိဿာ)</label>
+                    <input type="number" id="wholesale-viss" step="0.01" placeholder="0" oninput="calculateLive()">
+                </div>
+                <div class="form-group">
+                    <label>လက်လီရောင်း (ပိဿာ)</label>
+                    <input type="number" id="retail-viss" step="0.01" placeholder="0" oninput="calculateLive()">
+                </div>
+            </div>
+            <div style="font-size: 12px; color: var(--muted); text-align: right;" id="viss-check-msg"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span>💸 ယနေ့ ထွက်ငွေ (ကုန်ကျစရိတ်)</span></div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <input type="text" id="exp-name" placeholder="အကြောင်းအရာ (ဥပမာ-အလုပ်သမားခ)">
+                </div>
+                <div class="form-group" style="display: flex; gap: 6px;">
+                    <input type="number" id="exp-amount" placeholder="ငွေပမာဏ">
+                    <button class="btn btn-secondary" style="width: auto; padding: 0 14px;" onclick="addExpense()">+</button>
+                </div>
+            </div>
+            <div id="expense-list"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">📊 ယနေ့ ငွေစာရင်း တွက်ချက်မှု</div>
+            <div class="summary-box">
+                <div class="summary-row">
+                    <span>လက်ကားရငွေ (<span id="lbl-w-price">10,000</span> Ks):</span>
+                    <strong id="val-w-income">0 Ks</strong>
+                </div>
+                <div class="summary-row">
+                    <span>လက်လီရငွေ (<span id="lbl-r-price">12,000</span> Ks):</span>
+                    <strong id="val-r-income">0 Ks</strong>
+                </div>
+                <div class="summary-row">
+                    <span>စုစုပေါင်း ရောင်းရငွေ:</span>
+                    <strong id="val-total-income" style="color: var(--primary);">0 Ks</strong>
+                </div>
+                <div class="summary-row">
+                    <span>စုစုပေါင်း ထွက်ငွေ:</span>
+                    <strong id="val-total-expense" style="color: var(--danger);">0 Ks</strong>
+                </div>
+                <div class="summary-row total admin-only">
+                    <span>အသားတင် အရှုံး/အမြတ်:</span>
+                    <span id="val-net-profit" class="profit-pos">0 Ks</span>
+                </div>
+            </div>
+
+            <div class="admin-only" style="margin-top: 12px;">
+                <label>🤝 အစုရှယ်ယာ ခွဲဝေမှု (အမြတ်ပေါ်မှ)</label>
+                <div id="live-share-breakdown" style="background: #fafafa; padding: 8px 12px; border-radius: 8px; border: 1px solid #eee;"></div>
+            </div>
+
+            <button class="btn btn-primary" style="margin-top: 14px;" onclick="saveDailyRecord()">☁️ Online စာရင်းသွင်းမည်</button>
+        </div>
+    </div>
+
+    <!-- TAB 2: မှတ်တမ်းများ (Admin Only) -->
+    <div id="tab-history" class="tab-content">
+        <div class="card">
+            <div class="card-title">
+                <span>📈 စုစုပေါင်း လုပ်ငန်းအနှစ်ချုပ်</span>
+                <button class="btn btn-outline" onclick="exportCSV()">📥 Excel (CSV)</button>
+            </div>
+            <div class="summary-box">
+                <div class="summary-row"><span>စုစုပေါင်း ထွက်ရှိပိဿာ:</span><strong id="all-viss">0 ပိဿာ</strong></div>
+                <div class="summary-row"><span>စုစုပေါင်း ဝင်ငွေ:</span><strong id="all-income">0 Ks</strong></div>
+                <div class="summary-row"><span>စုစုပေါင်း ထွက်ငွေ:</span><strong id="all-expense">0 Ks</strong></div>
+                <div class="summary-row total"><span>စုစုပေါင်း အသားတင်အမြတ်:</span><strong id="all-profit">0 Ks</strong></div>
+            </div>
+            <div style="margin-top: 10px;">
+                <label>စုစုပေါင်း ရှယ်ယာဝေစု ရရှိမှု</label>
+                <div id="all-share-summary" style="background: #fafafa; padding: 8px 12px; border-radius: 8px; border: 1px solid #eee;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span>🗂 နေ့စဉ် မှတ်တမ်းများ (Live)</span></div>
+            <div id="history-list"></div>
+        </div>
+    </div>
+
+    <!-- TAB 3: ဆက်တင်နှင့် ရှယ်ယာ (Admin Only) -->
+    <div id="tab-settings" class="tab-content">
+        <div class="card">
+            <div class="card-title"><span>🏷 မှိုဈေးနှုန်း သတ်မှတ်ရန်</span></div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>လက်ကားဈေး (၁ ပိဿာ)</label>
+                    <input type="number" id="set-w-price" value="10000">
+                </div>
+                <div class="form-group">
+                    <label>လက်လီဈေး (၁ ပိဿာ)</label>
+                    <input type="number" id="set-r-price" value="12000">
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="savePrices()">ဈေးနှုန်း ပြောင်းလဲသိမ်းမည်</button>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <span>👥 အစုရှယ်ယာဝင်များ</span>
+                <span style="background:var(--primary); color:white; padding:2px 8px; border-radius:10px; font-size:11px;" id="total-share-badge">100%</span>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <input type="text" id="partner-name" placeholder="ရှယ်ယာရှင် အမည်">
+                </div>
+                <div class="form-group" style="display: flex; gap: 6px;">
+                    <input type="number" id="partner-percent" placeholder="ရာခိုင်နှုန်း (%)">
+                    <button class="btn btn-secondary" style="width: auto; padding: 0 14px;" onclick="addPartner()">+</button>
+                </div>
+            </div>
+            <div id="partner-list"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span>🔐 စကားဝှက် (PIN) ပြောင်းလဲရန်</span></div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Admin PIN</label>
+                    <input type="text" id="set-admin-pin" value="1234">
+                </div>
+                <div class="form-group">
+                    <label>အလုပ်သမား PIN</label>
+                    <input type="text" id="set-staff-pin" value="0000">
+                </div>
+            </div>
+            <button class="btn btn-outline" style="width:100%;" onclick="savePins()">PIN အသစ် သိမ်းဆည်းမည်</button>
+        </div>
+    </div>
+
+</div>
+
+<!-- Bottom Navigation -->
+<div class="nav-bar" id="bottom-nav">
+    <button class="nav-btn active" onclick="switchTab('daily', this)">
+        <span>📝</span><span>စာရင်းသွင်း</span>
+    </button>
+    <button class="nav-btn admin-only" onclick="switchTab('history', this)">
+        <span>📊</span><span>မှတ်တမ်းချုပ်</span>
+    </button>
+    <button class="nav-btn admin-only" onclick="switchTab('settings', this)">
+        <span>⚙️</span><span>Admin ဆက်တင်</span>
+    </button>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyB0lSwSRhJuwIEfAJaKZxmdxtcwnw-AyFw",
+        authDomain: "mushroom-farm-80f04.firebaseapp.com",
+        databaseURL: "https://mushroom-farm-80f04-default-rtdb.firebaseio.com",
+        projectId: "mushroom-farm-80f04",
+        storageBucket: "mushroom-farm-80f04.firebasestorage.app",
+        messagingSenderId: "257325655786",
+        appId: "1:257325655786:web:1a9954153efc57ae955993",
+        measurementId: "G-G6KZBMXGCQ"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let currentRole = null;
+    let appData = {
+        pins: { admin: "1234", staff: "0000" },
+        prices: { wholesale: 10000, retail: 12000 },
+        partners: [
+            { name: "ရှယ်ယာရှင် (၁)", percent: 50 },
+            { name: "ရှယ်ယာရှင် (၂)", percent: 50 }
+        ],
+        records: {}
+    };
+    let currentExpenses = [];
+
+    document.getElementById('entry-date').valueAsDate = new Date();
+
+    function initDataSync() {
+        db.ref('mushroomFarm').on('value', (snapshot) => {
+            const val = snapshot.val();
+            if (val) {
+                appData.pins = val.pins || appData.pins;
+                appData.prices = val.prices || appData.prices;
+                appData.partners = val.partners || appData.partners;
+                appData.records = val.records || {};
+                updateAllUI();
+            } else {
+                syncToCloud();
+            }
+        });
+    }
+
+    function syncToCloud() {
+        db.ref('mushroomFarm').set(appData);
+    }
+
+    initDataSync();
+
+    function login() {
+        const pin = document.getElementById('pin-input').value.trim();
+        if (pin === appData.pins.admin) {
+            currentRole = 'admin';
+        } else if (pin === appData.pins.staff) {
+            currentRole = 'staff';
+        } else {
+            return alert('PIN နံပါတ် မှားယွင်းနေပါသည်။');
+        }
+
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('user-role-label').innerText = currentRole === 'admin' ? '👑 Admin' : '👷 အလုပ်သမား';
+        
+        document.querySelectorAll('.admin-only').forEach(el => {
+            if (currentRole === 'admin') el.classList.remove('hidden');
+            else el.classList.add('hidden');
+        });
+
+        updateAllUI();
+    }
+
+    function logout() {
+        currentRole = null;
+        document.getElementById('pin-input').value = '';
+        document.getElementById('login-screen').style.display = 'flex';
+        switchTab('daily', document.querySelector('.nav-btn'));
+    }
+
+    function switchTab(tabName, btn) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-' + tabName).classList.add('active');
+        btn.classList.add('active');
+    }
+
+    function formatKs(num) {
+        return Math.round(num).toLocaleString('en-US') + ' Ks';
+    }
+
+    function addExpense() {
+        const name = document.getElementById('exp-name').value.trim();
+        const amount = parseFloat(document.getElementById('exp-amount').value);
+        if (!name || isNaN(amount) || amount <= 0) return alert('အကြောင်းအရာနှင့် ငွေပမာဏ ထည့်ပါ။');
+        currentExpenses.push({ name, amount });
+        document.getElementById('exp-name').value = '';
+        document.getElementById('exp-amount').value = '';
+        renderExpenses();
+        calculateLive();
+    }
+
+    function removeExpense(index) {
+        currentExpenses.splice(index, 1);
+        renderExpenses();
+        calculateLive();
+    }
+
+    function renderExpenses() {
+        const list = document.getElementById('expense-list');
+        if (currentExpenses.length === 0) {
+            list.innerHTML = '<div style="font-size:13px; color:#999; text-align:center; padding:6px;">ထွက်ငွေစာရင်း မရှိသေးပါ</div>';
+            return;
+        }
+        list.innerHTML = currentExpenses.map((item, idx) => `
+            <div class="expense-item">
+                <span>${item.name}</span>
+                <div>
+                    <strong style="color:var(--danger); margin-right:8px;">${formatKs(item.amount)}</strong>
+                    <button class="btn btn-danger" onclick="removeExpense(${idx})">ဖျက်</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function calculateLive() {
+        const totalViss = parseFloat(document.getElementById('total-viss').value) || 0;
+        const wViss = parseFloat(document.getElementById('wholesale-viss').value) || 0;
+        const rViss = parseFloat(document.getElementById('retail-viss').value) || 0;
+
+        const msgEl = document.getElementById('viss-check-msg');
+        if (totalViss > 0) {
+            const diff = (totalViss - (wViss + rViss)).toFixed(2);
+            msgEl.innerText = diff > 0 ? `ကျန်ရှိ / အလေအလွင့်: ${diff} ပိဿာ` : (diff < 0 ? `⚠️ ရောင်းရပိဿာ များနေပါသည်` : `✅ ပိဿာချိန် ကိုက်ညီပါသည်`);
+        } else msgEl.innerText = '';
+
+        const wIncome = wViss * appData.prices.wholesale;
+        const rIncome = rViss * appData.prices.retail;
+        const totalIncome = wIncome + rIncome;
+        const totalExpense = currentExpenses.reduce((sum, item) => sum + item.amount, 0);
+        const netProfit = totalIncome - totalExpense;
+
+        document.getElementById('val-w-income').innerText = formatKs(wIncome);
+        document.getElementById('val-r-income').innerText = formatKs(rIncome);
+        document.getElementById('val-total-income').innerText = formatKs(totalIncome);
+        document.getElementById('val-total-expense').innerText = formatKs(totalExpense);
+
+        const profitEl = document.getElementById('val-net-profit');
+        profitEl.innerText = formatKs(netProfit);
+        profitEl.className = netProfit >= 0 ? 'profit-pos' : 'profit-neg';
+
+        const shareBox = document.getElementById('live-share-breakdown');
+        shareBox.innerHTML = appData.partners.map(p => {
+            const shareAmt = netProfit > 0 ? (netProfit * (p.percent / 100)) : 0;
+            return `<div class="summary-row" style="margin-bottom:4px;"><span>${p.name} (${p.percent}%):</span><strong>${formatKs(shareAmt)}</strong></div>`;
+        }).join('');
+    }
+
+    function saveDailyRecord() {
+        const date = document.getElementById('entry-date').value;
+        const totalViss = parseFloat(document.getElementById('total-viss').value) || 0;
+        const wViss = parseFloat(document.getElementById('wholesale-viss').value) || 0;
+        const rViss = parseFloat(document.getElementById('retail-viss').value) || 0;
+
+        if (!date) return alert('ရက်စွဲ ရွေးချယ်ပါ။');
+        if (totalViss === 0 && wViss === 0 && rViss === 0 && currentExpenses.length === 0) return alert('စာရင်းထည့်သွင်းပါ။');
+
+        const wIncome = wViss * appData.prices.wholesale;
+        const rIncome = rViss * appData.prices.retail;
+        const totalIncome = wIncome + rIncome;
+        const totalExpense = currentExpenses.reduce((sum, item) => sum + item.amount, 0);
+        const netProfit = totalIncome - totalExpense;
+
+        const shares = appData.partners.map(p => ({
+            name: p.name, percent: p.percent,
+            amount: netProfit > 0 ? (netProfit * (p.percent / 100)) : 0
+        }));
+
+        const recordId = 'rec_' + Date.now();
+        appData.records[recordId] = {
+            id: recordId, date, totalViss, wViss, rViss,
+            totalIncome, totalExpense, netProfit,
+            submittedBy: currentRole === 'admin' ? 'Admin' : 'အလုပ်သမား',
+            expenses: [...currentExpenses],
+            shares
+        };
+
+        syncToCloud();
+
+        document.getElementById('total-viss').value = '';
+        document.getElementById('wholesale-viss').value = '';
+        document.getElementById('retail-viss').value = '';
+        currentExpenses = [];
+        renderExpenses();
+        calculateLive();
+        alert('✅ စာရင်းကို Online ပေါ်သို့ အောင်မြင်စွာ ပေးပို့သိမ်းဆည်းပြီးပါပြီ။');
+    }
+
+    function updateAllUI() {
+        document.getElementById('set-w-price').value = appData.prices.wholesale;
+        document.getElementById('set-r-price').value = appData.prices.retail;
+        document.getElementById('set-admin-pin').value = appData.pins.admin;
+        document.getElementById('set-staff-pin').value = appData.pins.staff;
+        document.getElementById('lbl-w-price').innerText = appData.prices.wholesale.toLocaleString();
+        document.getElementById('lbl-r-price').innerText = appData.prices.retail.toLocaleString();
+        document.getElementById('header-price-info').innerText = `လက်ကား: ${appData.prices.wholesale.toLocaleString()} Ks | လက်လီ: ${appData.prices.retail.toLocaleString()} Ks`;
+
+        renderPartners();
+        renderExpenses();
+        calculateLive();
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const recArray = Object.values(appData.records || {}).sort((a, b) => b.id.localeCompare(a.id));
+        let sumViss = 0, sumIncome = 0, sumExpense = 0, sumProfit = 0;
+        let partnerTotals = {};
+
+        recArray.forEach(r => {
+            sumViss += r.totalViss;
+            sumIncome += r.totalIncome;
+            sumExpense += r.totalExpense;
+            sumProfit += r.netProfit;
+            if (r.shares) r.shares.forEach(s => partnerTotals[s.name] = (partnerTotals[s.name] || 0) + s.amount);
+        });
+
+        document.getElementById('all-viss').innerText = sumViss.toFixed(2) + ' ပိဿာ';
+        document.getElementById('all-income').innerText = formatKs(sumIncome);
+        document.getElementById('all-expense').innerText = formatKs(sumExpense);
+        document.getElementById('all-profit').innerText = formatKs(sumProfit);
+
+        const shareSummaryEl = document.getElementById('all-share-summary');
+        const pNames = Object.keys(partnerTotals);
+        shareSummaryEl.innerHTML = pNames.length ? pNames.map(n => `<div class="summary-row" style="margin-bottom:4px;"><span>${n}:</span><strong>${formatKs(partnerTotals[n])}</strong></div>`).join('') : '<div style="font-size:13px; color:#888;">မှတ်တမ်း မရှိသေးပါ</div>';
+
+        const historyList = document.getElementById('history-list');
+        if (recArray.length === 0) {
+            historyList.innerHTML = '<div style="text-align:center; color:#888; padding:16px;">စာရင်းမှတ်တမ်း မရှိသေးပါ</div>';
+            return;
+        }
+
+        historyList.innerHTML = recArray.map(r => `
+            <div class="card" style="background:#fafafa; margin-bottom:8px; padding:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <strong>📅 ${r.date} <span style="font-size:11px; color:#666;">(${r.submittedBy || ''})</span></strong>
+                    <button class="btn btn-danger" onclick="deleteRecord('${r.id}')">ဖျက်</button>
+                </div>
+                <div style="font-size:13px; color:#444; line-height:1.6;">
+                    ထွက်ရှိ: <b>${r.totalViss} ပိဿာ</b> (လက်ကား: ${r.wViss} | လက်လီ: ${r.rViss})<br>
+                    ဝင်ငွေ: <span style="color:var(--primary);">${formatKs(r.totalIncome)}</span> | ထွက်ငွေ: <span style="color:var(--danger);">${formatKs(r.totalExpense)}</span><br>
+                    အသားတင်: <b class="${r.netProfit >= 0 ? 'profit-pos' : 'profit-neg'}">${formatKs(r.netProfit)}</b>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function deleteRecord(id) {
+        if (!confirm('ဤစာရင်းကို ဖျက်ရန် သေချာပါသလား?')) return;
+        delete appData.records[id];
+        syncToCloud();
+    }
+
+    function savePrices() {
+        const w = parseFloat(document.getElementById('set-w-price').value);
+        const r = parseFloat(document.getElementById('set-r-price').value);
+        if (isNaN(w) || isNaN(r) || w <= 0 || r <= 0) return alert('ဈေးနှုန်း မှန်ကန်စွာထည့်ပါ။');
+        appData.prices = { wholesale: w, retail: r };
+        syncToCloud();
+        alert('✅ ဈေးနှုန်း အသစ်ကို အလုပ်သမားဖုန်းများဆီသို့ပါ ပြောင်းလဲပြီးပါပြီ။');
+    }
+
+    function savePins() {
+        const aPin = document.getElementById('set-admin-pin').value.trim();
+        const sPin = document.getElementById('set-staff-pin').value.trim();
+        if (!aPin || !sPin || aPin === sPin) return alert('Admin PIN နှင့် Staff PIN မတူညီအောင် ထည့်သွင်းပါ။');
+        appData.pins = { admin: aPin, staff: sPin };
+        syncToCloud();
+        alert('✅ PIN နံပါတ်များ ပြောင်းလဲပြီးပါပြီ။');
+    }
+
+    function addPartner() {
+        const name = document.getElementById('partner-name').value.trim();
+        const percent = parseFloat(document.getElementById('partner-percent').value);
+        if (!name || isNaN(percent) || percent <= 0) return alert('အမည်နှင့် ရာခိုင်နှုန်း ထည့်ပါ။');
+        const total = appData.partners.reduce((s, p) => s + p.percent, 0);
+        if (total + percent > 100) return alert('စုစုပေါင်း 100% ထက် ကျော်လွန်နေပါသည်။');
+        appData.partners.push({ name, percent });
+        document.getElementById('partner-name').value = '';
+        document.getElementById('partner-percent').value = '';
+        syncToCloud();
+    }
+
+    function removePartner(idx) {
+        appData.partners.splice(idx, 1);
+        syncToCloud();
+    }
+
+    function renderPartners() {
+        const total = appData.partners.reduce((s, p) => s + p.percent, 0);
+        document.getElementById('total-share-badge').innerText = `စုစုပေါင်း: ${total}%`;
+        document.getElementById('partner-list').innerHTML = appData.partners.map((p, idx) => `
+            <div class="share-item">
+                <span><strong>${p.name}</strong> (${p.percent}%)</span>
+                <button class="btn btn-danger" onclick="removePartner(${idx})">ဖျက်</button>
+            </div>
+        `).join('');
+    }
+
+    function exportCSV() {
+        const recArray = Object.values(appData.records || {});
+        if (recArray.length === 0) return alert('စာရင်းမရှိသေးပါ။');
+        let csv = "\uFEFFရက်စွဲ,စာရင်းသွင်းသူ,စုစုပေါင်းပိဿာ,လက်ကားပိဿာ,လက်လီပိဿာ,ဝင်ငွေ,ထွက်ငွေ,အသားတင်အမြတ်\n";
+        recArray.forEach(r => {
+            csv += `${r.date},${r.submittedBy || ''},${r.totalViss},${r.wViss},${r.rViss},${r.totalIncome},${r.totalExpense},${r.netProfit}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `Mushroom_Online_Report_${new Date().toISOString().slice(0,10)}.csv`;
+        link.click();
+    }
+</script>
+</body>
+</html>
